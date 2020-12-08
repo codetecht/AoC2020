@@ -23,13 +23,6 @@ for line in data:
         for bag in inside:
             bag_dict[container][bag[1]] = bag[0]
     
-
-
-
-
-
-
-
     # This part limits runtime for debugging
     #if test_counter > 3:
     #    break
@@ -62,9 +55,6 @@ def part1():
     
 def part2():
     print(bags_inside('shiny gold'))
-    
-    
-    
     
 part1()
 part2()
