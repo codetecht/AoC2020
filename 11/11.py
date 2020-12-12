@@ -2,115 +2,141 @@
 # Workspace for Advent of Code 2020
 # Request permission before using or duplicating this code for any purpose
 
-import re
-
-# Prep work
 f = open("11/input.txt", "r+")
 data = f.readlines()
 
-width = len(data[0].rstrip()) # 92
-seats = list()
-seatmap = {}
+# Prep work
+width = len(data[0].rstrip())
+length = len(data)
 
-# For debugging
-test_counter = 0
+def generate():
+    seatmap = list()
+    for line in data:
+        seatmap.append(list(line.rstrip()))
+    return seatmap
 
-for line in data:
-    seats.append(line.rstrip())
+"""
+Performs a check from the seat in seatmap at seat_loc in all directions in
+[dirs]. If part == 2, will recursively look until a non-floor space is returned
+(edge of seating area is treated as unoccupied). For any other arg supplied as
+part, will only look at immediately adjacent seats (floor spots are considered
+unoccupied)
 
-    # This part limits runtime for debugging
-    #if test_counter > 3:
-    #    break
-    #else:
-    #    test_counter += 1
+args: seat_loc: ordered-pair tuple of seat coordinates (row, column)
+          dirs: list of string IDs for directions to peek
+          part: if part == 2, modifies the algorithm to search in sight-line;
+                all other values of part look for adjacent seats
+Returns: a [list] containing the status of each surrounding seat (adjacent 
+         seats if part == 1, in-sight seats if part == 2)
+"""
+def dirCheck(seat_loc, dirs, seatmap, part):
+    adj = list()
+    for dir in dirs:
+        row = seat_loc[0]
+        col = seat_loc[1]
 
-def populate(changelist):
-    if len(seatmap) == 0:
-        for i, row in enumerate(seats):
-            for j, chair in enumerate(row):
-                seatmap[(i,j)] = chair
-    else:
-        for seat in changelist:
-            if seatmap[seat] == 'L':
-                seatmap[seat] == '#'
-            if seatmap[seat] == '#':
-                seatmap[seat] == 'L'
+        # Navigate to the seat in the direction specified by dir
+        row -= dir.count('u')
+        row += dir.count('d')
+        col -= dir.count('l')
+        col += dir.count('r')
 
-def seatcheck(seat):
-    occ = 0
-    free = 0
-    max_free = 8
+        # If the seat is within the seating area, return its occupied status
+        if 0 <= row < length and 0 <= col < width:
+            seat_peek = seatmap[row][col]
+            if seat_peek == '.':
+                if part == 2:
+                    one_dir = [dir]
+                    adj.append(dirCheck((row, col), one_dir, seatmap, part)[0])
+                else:
+                    adj.append('.')
+            else:
+                adj.append(seat_peek)
 
-    if seat[0] == 0:
-        above = False
-    else:
-        above = True 
-    if seat[0] == len(data)-1:
-        below = False
-    else:
-        below = True
-    if seat[1] == 0:
-        left = False
-    else:
-        left = True
-    if seat[1] == width-1:
-        right = False
-    else:
-        right = True
-
-    edge_case = above + below + right + left
-    if edge_case == 3:
-        max_free = 5
-    if edge_case == 2:
-        max_free = 3
-
-
-    for row in range(seat[0]-int(above), seat[0]+int(below)+1):
-        for chair in range(seat[1]-int(left), seat[1]+int(right)+1):
-            if (row, chair) == seat:
-                continue
-            elif seatmap[(row, chair)] == '#':
-                occ += 1
-            elif seatmap[(row, chair)] == 'L' or '.':
-                free += 1
-    if seatmap[seat] == '#' and occ > 3:
-        return True
-    if seatmap[seat] == 'L' and free == max_free:
-        return True
-
-    return False
-
-
-def part1():
-    equilibrium = False
-    changelist = list()
-    populate(changelist)
-    print(seatmap[(0,0)])
-    test_counter = 0
-
-    while not equilibrium and test_counter < 2:
-        changelist = []
-
-        for seat in seatmap:
-            if seatcheck(seat):
-                changelist.append(seat)
-
-        if len(changelist) == 0:
-            equilibrium = True
-            print("Eq reached")
+        # If seat is outside the seating area, treat as unoccupied
         else:
-            test_counter += 1
+            adj.append('L')
 
-        populate(changelist)
-    
-    print(seatmap[(0,0)])
+    return adj
 
+"""
+Performs a pass/fail check on whether or not the seat at seat_loc meets the
+requirements to be changed from free to occupied (or vice-versa).
 
-def part2():
-    bar = 'foo'
-    
+args: seat_loc: ordered-pair tuple of seat coordinates (row, column)
+          dirs: list of string IDs for directions to peek
+          part: if part == 2, modifies the algorithm to search in sight-line;
+                all other values of part look for adjacent seats
+returns: TRUE if either:
+             The seat is occupied and >= 4 (>= 5 for part 2) surrounding seats are
+             occupied, or
+             The seat is occupied and all surrounding seats are free
+         FALSE otherwise
+"""
+def seatCheck(seat_loc, seatmap, part):
+    # Sets the rule for how many occupied seats around an occupied seat
+    # cause it to be flipped
+    if part == 2:
+        tolerance = 5
+    else:
+        tolerance = 4
+
+    # Remove directions which don't apply to the current seat (if top left
+    # corner, then none of the up or left directions will be checked)
+    dirs = ['u', 'd', 'l', 'r', 'ul', 'dl', 'ur', 'dr']
+    if seat_loc[0] == 0:
+        dirs = [str for str in dirs if 'u' not in str]
+    if seat_loc[0] == length-1:
+        dirs = [str for str in dirs if 'd' not in str]
+    if seat_loc[1] == 0:
+        dirs = [str for str in dirs if 'l' not in str]
+    if seat_loc[1] == width-1:
+        dirs = [str for str in dirs if 'r' not in str]
+
+    adjacent = dirCheck(seat_loc, dirs, seatmap, part)
+
+    seat_status = seatmap[seat_loc[0]][seat_loc[1]]
+    if seat_status == 'L' and '#' not in adjacent:
+        return True
+    elif seat_status == '#' and adjacent.count('#') >= tolerance: 
+        return True
+    else:
+        return False
+
+def updateSeatMap(changes, seatmap):
+    for seat in changes:
+        status = seatmap[seat[0]][seat[1]]
+        if status == '#':
+            seatmap[seat[0]][seat[1]] = 'L'
+        elif status == 'L':
+            seatmap[seat[0]][seat[1]] = '#'
+
+def equilibrate(part):
+    seatmap = generate()
+
+    at_equilibrium = False
+    while not at_equilibrium:
+
+        # Reset the change list and seatCheck all spots that aren't floor space
+        change_list = list()
+        for i, row in enumerate(seatmap):
+            for j, seat in enumerate(row):
+                if seat != '.' and seatCheck((i,j), seatmap, part):
+                    change_list.append((i,j))
+
+        # If no changes are found, we've reached equilibrium
+        if len(change_list) == 0:
+            at_equilibrium = True
+        else:
+            updateSeatMap(change_list, seatmap)
+
+    occ = 0
+    for row in seatmap:
+        occ += row.count('#')
+    return occ
+
 def main():
-    part1()
-    #part2()
+    print(equilibrate(1)) # Part 1
+    print(equilibrate(2)) # Part 2
 
 main()
