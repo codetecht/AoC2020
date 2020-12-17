@@ -65,8 +65,7 @@ def part2(valid_tickets, ticket_rules):
         bad_fields[rule] = list(range(1, len(ticket_rules)+1))
     
     for i, num in enumerate(len(valid_tickets)):
-        print('do stuff')
-
+        
 
     '''
     for ticket in valid_tickets[:3]:
@@ -80,7 +79,7 @@ def part2(valid_tickets, ticket_rules):
                     if i+1 in bad_fields[rule]:
                         bad_fields[rule].remove(i+1)
 
-        '''
+    '''
 
     for i, rule in enumerate(bad_fields):
         print(rule + ': ' + str(bad_fields[rule]))
