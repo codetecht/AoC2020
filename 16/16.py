@@ -3,8 +3,7 @@
 # Request permission before using or duplicating this code for any purpose
 
 import re
-import math
-import functools
+from functools import reduce
 from dataclasses import dataclass
 
 reField = re.compile('^([\w ]+): (\d+)-(\d+) or (\d+)-(\d+)')
@@ -13,9 +12,7 @@ f = open("16/input.txt", "r+")
 data = f.readlines()
 
 def getInput():
-    input = list()
-    for line in data:
-        input.append(line.rstrip())
+    input = [line for line in data]
     return input
 
 def part1(input):
@@ -25,75 +22,83 @@ def part1(input):
     rule_end = 0
     while section == 'rules':
         for i, line in enumerate(input):
-            if line == '':
+            if line == '\n':
                 section = 'my ticket'
                 rule_end = i
                 break
             else:
                 tokens = reField.findall(line)
                 rule = tokens[0][0]
-                ticket_rules[rule] = tokens[0][1:]
+                ticket_rules[rule] = [int(x) for x in tokens[0][1:]]
 
     my_ticket = input[rule_end+2]
 
-    invalid = 0
+    error = 0
     for line in input[rule_end+5:]:
         nums = line.split(',')
+        valid_ticket = True
         for n in nums:
-            valid = False
             n = int(n)
+            valid_field = False
             for rule in ticket_rules:
-                min1, max1 = int(ticket_rules[rule][0]), int(ticket_rules[rule][1])
-                min2, max2 = int(ticket_rules[rule][2]), int(ticket_rules[rule][3])
+                min1, max1 = ticket_rules[rule][0], ticket_rules[rule][1]
+                min2, max2 = ticket_rules[rule][2], ticket_rules[rule][3]
                 if min1 <= n <= max1 or min2 <= n <= max2:
-                    valid = True
-                    if line not in valid_tickets:
-                        valid_tickets.append(line)
-                    break
-            if not valid:
-                invalid += n
+                    valid_field = True
+
+            if not valid_field:
+                error += n
+                valid_ticket = False
+
+        if valid_ticket:
+            valid_tickets.append(line)
 
     valid_tickets.insert(0, my_ticket)
 
-    print("# invalid: " + str(invalid))
+    print("# invalid: " + str(error))
     return(valid_tickets, ticket_rules)
 
 
 def part2(valid_tickets, ticket_rules):
-    bad_fields = {}
+    assign = {}
+    fields_count = len(valid_tickets[0].split(','))
+    for i in range(fields_count):
+        assign[i] = list()
+
     for rule in ticket_rules:
-        bad_fields[rule] = list(range(1, len(ticket_rules)+1))
-    
-    for i, num in enumerate(len(valid_tickets)):
-        
+        min1, max1 = ticket_rules[rule][0], ticket_rules[rule][1]
+        min2, max2 = ticket_rules[rule][2], ticket_rules[rule][3]
+        for i in range(fields_count):
+            for num, ticket in enumerate(valid_tickets):
+                val = int((ticket.split(','))[i])
+                if min1 <= val <= max1 or min2 <= val <= max2:
+                    if num+1 == len(valid_tickets):
+                        assign[i].append(rule)
+                else: break
 
-    '''
-    for ticket in valid_tickets[:3]:
-        for i, n in enumerate(ticket.split(',')):
-            n = int(n)
-            for rule in ticket_rules:
-                min1, max1 = int(ticket_rules[rule][0]), int(ticket_rules[rule][1])
-                min2, max2 = int(ticket_rules[rule][2]), int(ticket_rules[rule][3])
-                if not (min1 <= n <= max1 or min2 <= n <= max2):
-                    print(rule + " invalid for " + str(i+1) + " because " + str(n) + " not between " + str(min1) + "-" + str(max1) + " or " + str(min2) + "-" + str(max2))
-                    if i+1 in bad_fields[rule]:
-                        bad_fields[rule].remove(i+1)
+    done = False
+    while not done:
+        done = True
+        for field in assign:
+            if len(assign[field]) != 1: done = False
+            else: 
+                for other in assign:
+                    if other is not field:
+                        if assign[field][0] in assign[other]:
+                            assign[other].remove(assign[field][0])
 
-    '''
-
-    for i, rule in enumerate(bad_fields):
-        print(rule + ': ' + str(bad_fields[rule]))
-
-
+    departures = [x for x in assign if 'departure' in assign[x][0]]
+    answer = reduce(lambda a,b: int(a)*int(b), [valid_tickets[0].split(',')[x] for x in departures])
+    print(answer)
 
 def main():
     sample1 = ['class: 1-3 or 5-7',
               'row: 6-11 or 33-44',
               'seat: 13-40 or 45-50',
-              '',
+              '\n',
               'your ticket:',
               '7,1,14',
-              '',
+              '\n',
               'nearby tickets:',
               '7,3,47',
               '40,4,50',
